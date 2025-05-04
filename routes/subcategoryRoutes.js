@@ -18,4 +18,16 @@ router.put('/:id', async (req, res) => {
   res.json(updated);
 });
 
+router.delete('/:id', async (req, res) => {
+  try {
+    const deleted = await Subcategory.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Subcategory not found' });
+    }
+    res.json({ message: 'Subcategory deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting subcategory', error });
+  }
+});
+
 module.exports = router;
