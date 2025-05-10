@@ -7,6 +7,10 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const categoryRoutes = require('./routes/categoryRoutes');
 const subcategoryRoutes = require('./routes/subcategoryRoutes');
+const tagRoutes = require('./routes/tagRoutes');
+const collectionRoutes = require('./routes/collectionRoutes');
+const occasionRoutes = require('./routes/occasionRoutes');
+const colorRoutes = require('./routes/colorRoutes');
 
 connectDB();
 const app = express();
@@ -18,5 +22,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
+app.use('/api/tags', tagRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api/occasions', occasionRoutes);
+app.use('/api/colors', colorRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));
