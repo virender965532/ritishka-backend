@@ -11,6 +11,7 @@ const tagRoutes = require('./routes/tagRoutes');
 const collectionRoutes = require('./routes/collectionRoutes');
 const occasionRoutes = require('./routes/occasionRoutes');
 const colorRoutes = require('./routes/colorRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 connectDB();
 const app = express();
@@ -26,5 +27,6 @@ app.use('/api/tags', tagRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/occasions', occasionRoutes);
 app.use('/api/colors', colorRoutes);
+app.use('/api/products', productRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));
