@@ -9,8 +9,8 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, isactive, showonhomepage=false } = req.body;
-    const collection = new Collection({ name, isactive, showonhomepage });
+    const { name, isactive, showonhomepage = false, subtitle, description, link } = req.body;
+    const collection = new Collection({ name, isactive, showonhomepage, subtitle, description, link });
     await collection.save();
     res.json(collection);
   } catch (error) {
@@ -20,8 +20,12 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { name, isactive, showonhomepage } = req.body;
-    const updatedCollection = await Collection.findByIdAndUpdate(req.params.id, { name, isactive, showonhomepage }, { new: true });
+    const { name, isactive, showonhomepage, subtitle, description, link } = req.body;
+    const updatedCollection = await Collection.findByIdAndUpdate(
+      req.params.id,
+      { name, isactive, showonhomepage, subtitle, description, link },
+      { new: true }
+    );
     res.json(updatedCollection);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update collection' });
