@@ -18,7 +18,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 router.get('/', async (req, res) => {
-  const subcategories = await Subcategory.find().populate('category_id');
+  let subcategories;
+  if (req?.query?.id) {
+    subcategories = await Subcategory.find({ category_id: req.query.id }).populate('category_id');
+  } else {
+    subcategories = await Subcategory.find().populate('category_id');
+  }
   res.json(subcategories);
 });
 
