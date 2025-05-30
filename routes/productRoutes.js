@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const Product = require('../models/Product');
 const fs = require('fs');
+const mongoose = require('mongoose');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -16,6 +17,15 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage, limits: { files: 6 } }); // Allow a maximum of 6 images
+
+function slugify(text) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\W-]+/g, '-') // Replace spaces and non-word chars with -
+    .replace(/^-+|-+$/g, '');  // Remove leading/trailing hyphens
+}
 
 router.get('/', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
@@ -35,14 +45,30 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST route to create a product with images
 router.post('/', upload.array('images', 6), async (req, res) => {
   try {
     const { title, price, discount, color, description, quantity, category, subcategory, tags, collection, occasion, showOnHomepage, isLatest, hotSeller, isTrending, showInGallery, createdBy, isfeatured, isactive } = req.body;
     const images = req.files ? req.files.map(file => `/images/${file.filename}`) : []; // Save the image paths
 
+    // Generate slug
+    let baseSlug = slugify(title);
+    let slug = baseSlug;
+    let slugExists = await Product.findOne({ slug });
+    let counter = 1;
+    while (slugExists) {
+      slug = `${baseSlug}-${counter}`;
+      slugExists = await Product.findOne({ slug });
+      counter++;
+    }
+
+    // If slug already exists for the base title, return validation error
+    if (counter > 2) {
+      return res.status(400).json({ error: 'A product with a similar title already exists. Please use a different title.' });
+    }
+
     const product = new Product({
       title,
+      slug : counter > 1 ? `${baseSlug}-${counter}` : baseSlug,
       price,
       discount,
       color,
@@ -50,7 +76,7 @@ router.post('/', upload.array('images', 6), async (req, res) => {
       quantity,
       category,
       subcategory,
-      tags,
+      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag.trim())) : [],
       images,
       collection,
       occasion,
@@ -82,6 +108,25 @@ router.put('/:id', upload.array('images', 6), async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
+    var productslug = slugify(title);
+    if(product.title !== title) {
+      // Generate slug
+      let baseSlug = slugify(title);
+      let slug = baseSlug;
+      productslug = slug
+      let slugExists = await Product.findOne({ slug });
+      let counter = 1;
+      while (slugExists) {
+        slug = `${baseSlug}-${counter}`;
+        productslug = slug;
+        slugExists = await Product.findOne({ slug });
+        counter++;
+      }
+      // If slug already exists for the base title, return validation error
+      if (counter > 2) {
+        return res.status(400).json({ error: 'A product with a similar title already exists. Please use a different title.' });
+      }
+    }
 
     // If new images are provided, delete the old images
     if (newImages) {
@@ -97,6 +142,7 @@ router.put('/:id', upload.array('images', 6), async (req, res) => {
 
     const updateData = {
       title,
+      slug: productslug,
       price,
       discount,
       color,
@@ -104,7 +150,7 @@ router.put('/:id', upload.array('images', 6), async (req, res) => {
       quantity,
       category,
       subcategory,
-      tags,
+      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag.trim())) : [],
       updatedAt: new Date(),
       updatedBy,
       isfeatured,
@@ -153,7 +199,6 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST route to fetch at least 8 products per tag with category and subcategory details
 router.post('/by-tags', async (req, res) => {
   try {
     const { tagIds } = req.body; // Expecting { tagIds: [id1, id2, ...] }
@@ -161,22 +206,27 @@ router.post('/by-tags', async (req, res) => {
       return res.status(400).json({ error: 'tagIds must be a non-empty array' });
     }
 
-    var results = [];
+    var resultsMap = new Map();
 
     for (const tagId of tagIds) {
+      var objectTagId = new mongoose.Types.ObjectId(tagId);
       const products = await Product.find({
-        tags: tagId,
+        tags: { $in: [objectTagId] },
         isactive: true
       })
       .populate({ path: 'category', select: 'name' })
       .populate({ path: 'subcategory', select: 'name' })
       .limit(8)
       .sort({ createdAt: -1 });
-      results = [...results, ...products];
+      for (const product of products) {
+        resultsMap.set(product._id.toString(), product);
+      }
     }
 
-    res.json(results);
+    const uniqueResults = Array.from(resultsMap.values());
+    res.json(uniqueResults);
   } catch (error) {
+    console.log('Error fetching products by tags:', error);
     res.status(500).json({ error: 'Failed to fetch products by tags' });
   }
 });
@@ -219,4 +269,44 @@ router.post('/by-types', async (req, res) => {
   }
 });
 
+router.post('/by-filter', async (req, res) => {
+  try {
+    const { filter: filterReq, limit=15, skip=0, sort:sortReq } = req.body;
+
+    var results = [];
+    var sort = sortReq ? sortReq : { createdAt: -1 };
+    var filter = filterReq ? { isactive: true } : { isactive: true };
+    const products = await Product.find(filter)
+      .populate({ path: 'category', select: 'name' })
+      .populate({ path: 'subcategory', select: 'name' })
+      .limit(limit).
+      skip(skip)
+      .sort(sort);
+      // results = [...results, ...products];
+
+
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products by types' });
+  }
+});
+
+router.get('/:slug', async (req, res) => {
+  const slug = req.params.slug;
+  if (!slug) {
+    return res.status(400).json({ message: 'Slug is required' });
+  }
+  try {
+    const product = await Product.findOne({ slug })
+      .populate({ path: 'category', select: 'name' })
+      .populate({ path: 'subcategory', select: 'name' })
+      .populate({ path: 'tags', select: 'name' }); 
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }     
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve product' });
+  }
+});
 module.exports = router;

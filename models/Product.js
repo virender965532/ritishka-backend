@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const ProductSchema = new mongoose.Schema({
   title: { type: String, required: true },
+  slug: { type: String, required: true },
   price: { type: Number, required: true },
   discount: { type: Number, default: 0 },
   color: { type: String },
@@ -11,7 +12,8 @@ const ProductSchema = new mongoose.Schema({
   // subcategory: { type: String },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Subcategory' },
-  tags: [{ type: String }],
+  // tags: [{ type: String }],
+  tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   images: [{ type: String }],
   collection: { type: String },
   occasion: { type: String },
