@@ -12,6 +12,11 @@ const collectionRoutes = require('./routes/collectionRoutes');
 const occasionRoutes = require('./routes/occasionRoutes');
 const colorRoutes = require('./routes/colorRoutes');
 const productRoutes = require('./routes/productRoutes');
+const heroPageRoutes = require('./routes/heroPageRoutes');
+const packingBoxRoutes = require('./routes/packingBoxRoutes');
+const threeDynamicRoutes = require('./routes/threeDynamicRoutes');
+const dynamicCardRoutes = require('./routes/dynamicCardRoutes');
+const bannerRoutes = require('./routes/bannerRoutes');
 
 connectDB();
 const app = express();
@@ -28,5 +33,10 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/occasions', occasionRoutes);
 app.use('/api/colors', colorRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/pages/hero', heroPageRoutes);
+app.use('/api/pages/packing-box', packingBoxRoutes);
+app.use('/api/pages/three-dynamic', threeDynamicRoutes);
+app.use('/api/pages/dynamic-card', dynamicCardRoutes);
+app.use('/api/pages/banner', bannerRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));
