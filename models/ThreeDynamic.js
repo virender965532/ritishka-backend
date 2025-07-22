@@ -6,7 +6,15 @@ const ThreeDynamicSchema = new mongoose.Schema({
   alt: String,
   isactive: Boolean,
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
+  updatedAt: { type: Date, default: Date.now },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+}, { timestamps: true });
 
 module.exports = mongoose.model('ThreeDynamic', ThreeDynamicSchema);

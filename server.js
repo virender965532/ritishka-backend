@@ -17,6 +17,7 @@ const packingBoxRoutes = require('./routes/packingBoxRoutes');
 const threeDynamicRoutes = require('./routes/threeDynamicRoutes');
 const dynamicCardRoutes = require('./routes/dynamicCardRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
+const sendEmailRoutes = require('./routes/sendEmailRoutes');
 
 connectDB();
 const app = express();
@@ -38,5 +39,6 @@ app.use('/api/pages/packing-box', packingBoxRoutes);
 app.use('/api/pages/three-dynamic', threeDynamicRoutes);
 app.use('/api/pages/dynamic-card', dynamicCardRoutes);
 app.use('/api/pages/banner', bannerRoutes);
+app.use('/api/send-email', sendEmailRoutes);
 
 app.listen(5000, () => console.log("Server running on port 5000"));

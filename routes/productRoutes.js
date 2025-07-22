@@ -29,7 +29,7 @@ function slugify(text) {
 
 router.get('/', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = 10;
+  const limit = 25;
   const skip = (page - 1) * limit;
 
   try {
@@ -44,6 +44,88 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve products' });
   }
 });
+
+// ...existing code...
+
+router.post('/filter', async (req, res) => {
+  try {
+    const {
+      priceMin,
+      priceMax,
+      category = null,
+      collection = null,
+      occasion = null,
+      tag = null,
+      color = null,
+      sort,
+      page = 1
+    } = req.body;
+
+    const limit = 20;
+    const skip = (parseInt(page) - 1) * limit;
+
+    // Build filter
+    let filter = { isactive: true };
+
+    if (priceMin !== undefined || priceMax !== undefined) {
+      filter.price = {};
+      if (priceMin !== undefined) filter.price.$gte = Number(priceMin);
+      if (priceMax !== undefined) filter.price.$lte = Number(priceMax);
+    }
+    if (category && Array.isArray(category) && category.length > 0) {
+      filter.category = { $in: category };
+    }
+    if (collection && Array.isArray(collection) && collection.length > 0) {
+      filter.collection = { $in: collection };
+    }
+    if (occasion && Array.isArray(occasion) && occasion.length > 0) {
+      filter.occasion = { $in: occasion };
+    }
+    if (tag && Array.isArray(tag) && tag.length > 0) {
+      filter.tags = { $in: tag };
+    }
+    if (color && Array.isArray(color) && color.length > 0) {
+      filter.color = { $in: color };
+    }
+
+    // Build sort
+    let sortOption = { createdAt: -1 };
+    if (sort === 'latest') {
+      // filter.isLatest = true;
+      sortOption = { createdAt: -1 };
+    } else if (sort === 'featured') {
+      // filter.isfeatured = true;
+      sortOption = { isfeatured: -1 };
+    } else if (sort === 'bestSeller') {
+      // filter.hotSeller = true;
+      sortOption = { hotSeller: -1 };
+    } else if (sort === 'lowToHigh') {
+      sortOption = { price: 1 };
+    } else if (sort === 'highToLow') {
+      sortOption = { price: -1 };
+    }
+
+    const total = await Product.countDocuments(filter);
+
+    const products = await Product.find(filter)
+      .populate({ path: 'category', select: 'name' })
+      .populate({ path: 'subcategory', select: 'name' })
+      .populate({ path: 'tags', select: 'name' })
+      .limit(limit)
+      .skip(skip)
+      .sort(sortOption);
+
+    res.json({
+      products,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      totalProducts: total
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products by filter', details: error.message });
+  }
+});
+
 
 router.post('/', upload.array('images', 6), async (req, res) => {
   try {
@@ -76,7 +158,7 @@ router.post('/', upload.array('images', 6), async (req, res) => {
       quantity,
       category,
       subcategory,
-      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag.trim())) : [],
+      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag?.trim())) : [],
       images,
       collection,
       occasion,
@@ -150,7 +232,7 @@ router.put('/:id', upload.array('images', 6), async (req, res) => {
       quantity,
       category,
       subcategory,
-      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag.trim())) : [],
+      tags: tags ? tags.split(',').map(tag => new mongoose.Types.ObjectId(tag?.trim())) : [],
       updatedAt: new Date(),
       updatedBy,
       isfeatured,

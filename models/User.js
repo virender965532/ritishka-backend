@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     match: /^[0-9]{10}$/ // Adjust regex as needed
   },
+  profilePicture: { type: String },
   password: { type: String, required: true },
   role: { type: String, enum: ["USER", "ADMIN", "SUPERADMIN"], default: "USER" },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

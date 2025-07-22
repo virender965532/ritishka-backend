@@ -5,14 +5,18 @@ const ProductSchema = new mongoose.Schema({
   slug: { type: String, required: true },
   price: { type: Number, required: true },
   discount: { type: Number, default: 0 },
-  color: { type: String },
+  color: [String],
+  brand: { type: String },
+  sku: { type: String, required: true },
+  video: { type: String },
+  youtubeLink: { type: String },
+  facebookLink: { type: String },
+  instagramLink: { type: String },
+  shortDescription: { type: String },
   description: { type: String },
   quantity: { type: Number, required: true },
-  // category: { type: String },
-  // subcategory: { type: String },
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
   subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'Subcategory' },
-  // tags: [{ type: String }],
   tags: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }],
   images: [{ type: String }],
   collection: { type: String },
@@ -26,8 +30,14 @@ const ProductSchema = new mongoose.Schema({
   isactive: Boolean,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  // createdBy: { type: String },
-  // updatedBy: { type: String },
-});
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+}, { timestamps: true });
 
 module.exports = mongoose.model('Product', ProductSchema);
