@@ -4,9 +4,7 @@ const HeroPageSchema = new mongoose.Schema({
   name: String,
   title: String,
   subtitle: String,
-  modelPath: String,
-  defaultColor: String,
-  colors: [String],
+  image: String, // image file path
   link: String,
   isactive: Boolean, // <-- Added isactive field
   createdAt: {
