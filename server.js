@@ -42,6 +42,7 @@ app.use('/api/pages/dynamic-card', dynamicCardRoutes);
 app.use('/api/pages/banner', bannerRoutes);
 app.use('/api/send-email', sendEmailRoutes);
 
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
