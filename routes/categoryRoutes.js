@@ -1,22 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const Category = require('../models/Category');
-const fs = require('fs');
+const { uploadImageToS3ReturnKey, deleteImageFromS3 } = require('../helper/s3Helper');
 const { generateSlug } = require('../helper/slug'); // Import the slug generation utility
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../public/images')); // Save images in the public/images folder
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`); // Unique filename
-  },
-});
-
-const upload = multer({ storage });
+const { authMiddleware } = require('../middleware/authMiddleware');
+const upload = multer({ storage: multer.memoryStorage() });
 
 // GET with pagination, search, and sorting
 router.get('/', async (req, res) => {
@@ -107,12 +96,18 @@ router.post('/', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Category slug must be unique' });
     }
 
+    let imageUrl = null;
+    if (req.file) {
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'categories');
+      imageUrl = uploadResult.Key;
+    }
+
     const category = new Category({
       name,
       title,
       description,
       isactive,
-      image,
+      image: imageUrl,
       slug,
       createdBy: userId
     });
@@ -156,20 +151,24 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       }
     }
 
-    // If a new image is provided, delete the old image
-    if (image && category.image) {
-      const oldImagePath = path.join(__dirname, '../public', category.image);
-      fs.unlink(oldImagePath, (err) => {
-        if (err) {
-          console.error('Error deleting old image:', err);
-        }
-      });
+    let imageUrl = category.image;
+    if (req.file) {
+      if (category.image) await deleteImageFromS3(category.image);
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'categories');
+      imageUrl = uploadResult.Key;
     }
 
-    const updateData = { name, title, description, isactive, slug, updatedBy: userId };
-    if (image) {
-      updateData.image = image;
-    }
+    // // If a new image is provided, delete the old image
+    // if (image && category.image) {
+    //   const oldImagePath = path.join(__dirname, '../public', category.image);
+    //   fs.unlink(oldImagePath, (err) => {
+    //     if (err) {
+    //       console.error('Error deleting old image:', err);
+    //     }
+    //   });
+    // }
+
+    const updateData = { name, title, description, isactive, slug, image: imageUrl, updatedBy: userId };
 
     const updatedCategory = await Category.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json({
@@ -198,13 +197,9 @@ router.delete('/:id', async (req, res) => {
 
     // Delete the linked image if it exists
     if (category.image) {
-      const imagePath = path.join(__dirname, '../public', category.image);
-      fs.unlink(imagePath, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-        }
-      });
+      await deleteImageFromS3(category.image);
     }
+
 
     // Delete the category
     await Category.findByIdAndDelete(req.params.id);

@@ -1,26 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const Product = require('../models/Product');
-const fs = require('fs');
 const mongoose = require('mongoose');
 const { generateSlug } = require('../helper/slug');
 const { generateSku } = require('../helper/sku');
+const { uploadImageToS3ReturnKey, uploadVideoToS3ReturnKey, deleteImageFromS3, deleteVideoFromS3 } = require('../helper/s3Helper');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const folder = file.fieldname === 'video' ? '../public/videos' : '../public/images';
-    cb(null, path.join(__dirname, folder));
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 const fileUpload = upload.fields([
   { name: 'images', maxCount: 6 },
@@ -184,9 +173,20 @@ router.post('/', fileUpload, async (req, res) => {
       youtubeLink, facebookLink, instagramLink, blogLink, userId
     } = req.body;
 
-    const images = req?.files?.images ? req.files.images.map(file => `/images/${file.filename}`) : [];
-    // Make video optional
-    const video = req.file?.video ? `/videos/${req.file.video.filename}` : undefined;
+    // Upload images to S3
+    let images = [];
+    if (req.files?.images) {
+      const uploadPromises = req.files.images.map(file => uploadImageToS3ReturnKey(file, 'product/image'));
+      const uploadResults = await Promise.all(uploadPromises);
+      images = uploadResults.map(result => result.Key);
+    }
+
+    // Upload video to S3
+    let video = undefined;
+    if (req.files?.video) {
+      const uploadResult = await uploadVideoToS3ReturnKey(req.files.video[0], 'product/video');
+      video = uploadResult.Key;
+    }
 
     const slug = generateSlug(title);
     const sku = await generateSku(category);
@@ -277,10 +277,6 @@ router.put('/:id', fileUpload, async (req, res) => {
       youtubeLink, facebookLink, instagramLink, blogLink
     } = req.body;
 
-    const newImages = req.file?.images?.length > 0 ? req.file?.images.map(file => `/images/${file.filename}`) : null;
-    // Make video optional
-    const newVideo = req.file?.video ? `/videos/${req.file.video.filename}` : undefined;
-
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
@@ -298,18 +294,32 @@ router.put('/:id', fileUpload, async (req, res) => {
       sku = await generateSku(category);
     }
 
-    // Delete old images if new ones are uploaded
-    if (newImages && product.images && product.images.length > 0) {
-      product.images.forEach(image => {
-        const imagePath = path.join(__dirname, '../public', image);
-        fs.unlink(imagePath, () => {});
-      });
+    // Handle new images upload
+    let newImages = null;
+    if (req.files?.images?.length > 0) {
+      // Delete old images from S3
+      if (product.images && product.images.length > 0) {
+        const deletePromises = product.images.map(image => deleteImageFromS3(image));
+        await Promise.all(deletePromises);
+      }
+      
+      // Upload new images to S3
+      const uploadPromises = req.files.images.map(file => uploadImageToS3ReturnKey(file, 'product/image'));
+      const uploadResults = await Promise.all(uploadPromises);
+      newImages = uploadResults.map(result => result.Key);
     }
 
-    // Delete old video if new one is uploaded
-    if (newVideo && product.video) {
-      const videoPath = path.join(__dirname, '../public', product.video);
-      fs.unlink(videoPath, () => {});
+    // Handle new video upload
+    let newVideo = undefined;
+    if (req.files?.video) {
+      // Delete old video from S3
+      if (product.video) {
+        await deleteVideoFromS3(product.video);
+      }
+      
+      // Upload new video to S3
+      const uploadResult = await uploadVideoToS3ReturnKey(req.files.video[0], 'product/video');
+      newVideo = uploadResult.Key;
     }
 
     // Calculate discountedPrice
@@ -365,16 +375,15 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    // Delete images
-    product.images.forEach(image => {
-      const imagePath = path.join(__dirname, '../public', image);
-      fs.unlink(imagePath, () => {});
-    });
+    // Delete images from S3
+    if (product.images && product.images.length > 0) {
+      const deletePromises = product.images.map(image => deleteImageFromS3(image));
+      await Promise.all(deletePromises);
+    }
 
-    // Delete video (optional)
+    // Delete video from S3 (optional)
     if (product.video) {
-      const videoPath = path.join(__dirname, '../public', product.video);
-      fs.unlink(videoPath, () => {});
+      await deleteVideoFromS3(product.video);
     }
 
     await Product.findByIdAndDelete(req.params.id);

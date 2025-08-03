@@ -2,19 +2,9 @@ const express = require('express');
 const router = express.Router();
 const DynamicCard = require('../models/DynamicCard');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { uploadImageToS3ReturnKey, deleteImageFromS3 } = require('../helper/s3Helper');
 
-// Multer config for image upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../public/images'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all dynamic cards
 router.get('/', async (req, res) => {
@@ -30,11 +20,17 @@ router.get('/', async (req, res) => {
 router.post('/', upload.single('img'), async (req, res) => {
   try {
     const { alt, link, type, isactive } = req.body;
-    const img = req.file ? `/images/${req.file.filename}` : null;
+    
+    let imgUrl = null;
+    if (req.file) {
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'dynamic-cards');
+      imgUrl = uploadResult.Key;
+    }
+    
     const card = new DynamicCard({
       alt,
       link,
-      img,
+      img: imgUrl,
       type,
       isactive,
       createdAt: new Date(),
@@ -51,21 +47,17 @@ router.post('/', upload.single('img'), async (req, res) => {
 router.put('/:id', upload.single('img'), async (req, res) => {
   try {
     const { alt, link, type, isactive } = req.body;
-    const img = req.file ? `/images/${req.file.filename}` : null;
 
     const card = await DynamicCard.findById(req.params.id);
     if (!card) {
       return res.status(404).json({ message: 'Dynamic card not found' });
     }
 
-    // If a new image is provided, delete the old image
-    if (img && card.img) {
-      const oldImagePath = path.join(__dirname, '../public', card.img);
-      fs.unlink(oldImagePath, (err) => {
-        if (err) {
-          console.error('Error deleting old image:', err);
-        }
-      });
+    let imgUrl = card.img;
+    if (req.file) {
+      if (card.img) await deleteImageFromS3(card.img);
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'dynamic-cards');
+      imgUrl = uploadResult.Key;
     }
 
     const updateData = {
@@ -73,11 +65,9 @@ router.put('/:id', upload.single('img'), async (req, res) => {
       link,
       type,
       isactive,
+      img: imgUrl,
       updatedAt: new Date()
     };
-    if (img) {
-      updateData.img = img;
-    }
 
     const updatedCard = await DynamicCard.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(updatedCard);
@@ -96,12 +86,7 @@ router.delete('/:id', async (req, res) => {
 
     // Delete the linked image if it exists
     if (card.img) {
-      const imagePath = path.join(__dirname, '../public', card.img);
-      fs.unlink(imagePath, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-        }
-      });
+      await deleteImageFromS3(card.img);
     }
 
     await DynamicCard.findByIdAndDelete(req.params.id);

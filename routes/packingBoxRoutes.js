@@ -2,19 +2,9 @@ const express = require('express');
 const router = express.Router();
 const PackingBox = require('../models/PackingBox');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { uploadImageToS3ReturnKey, deleteImageFromS3 } = require('../helper/s3Helper');
 
-// Multer config for image upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../public/images'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all packing boxes
 router.get('/', async (req, res) => {
@@ -30,10 +20,16 @@ router.get('/', async (req, res) => {
 router.post('/', upload.single('img'), async (req, res) => {
   try {
     const { link, alt, title, desc, isactive } = req.body;
-    const img = req.file ? `/images/${req.file.filename}` : null;
+    
+    let imgUrl = null;
+    if (req.file) {
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'packing-boxes');
+      imgUrl = uploadResult.Key;
+    }
+    
     const box = new PackingBox({
       link,
-      img,
+      img: imgUrl,
       alt,
       title,
       desc,
@@ -52,21 +48,17 @@ router.post('/', upload.single('img'), async (req, res) => {
 router.put('/:id', upload.single('img'), async (req, res) => {
   try {
     const { link, alt, title, desc, isactive } = req.body;
-    const img = req.file ? `/images/${req.file.filename}` : null;
 
     const box = await PackingBox.findById(req.params.id);
     if (!box) {
       return res.status(404).json({ message: 'Packing box not found' });
     }
 
-    // If a new image is provided, delete the old image
-    if (img && box.img) {
-      const oldImagePath = path.join(__dirname, '../public', box.img);
-      fs.unlink(oldImagePath, (err) => {
-        if (err) {
-          console.error('Error deleting old image:', err);
-        }
-      });
+    let imgUrl = box.img;
+    if (req.file) {
+      if (box.img) await deleteImageFromS3(box.img);
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'packing-boxes');
+      imgUrl = uploadResult.Key;
     }
 
     const updateData = {
@@ -75,11 +67,9 @@ router.put('/:id', upload.single('img'), async (req, res) => {
       title,
       desc,
       isactive,
+      img: imgUrl,
       updatedAt: new Date()
     };
-    if (img) {
-      updateData.img = img;
-    }
 
     const updatedBox = await PackingBox.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.json(updatedBox);
@@ -98,12 +88,7 @@ router.delete('/:id', async (req, res) => {
 
     // Delete the linked image if it exists
     if (box.img) {
-      const imagePath = path.join(__dirname, '../public', box.img);
-      fs.unlink(imagePath, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-        }
-      });
+      await deleteImageFromS3(box.img);
     }
 
     await PackingBox.findByIdAndDelete(req.params.id);

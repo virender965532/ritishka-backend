@@ -1,22 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const Subcategory = require('../models/Subcategory');
-const fs = require('fs');
+const { uploadImageToS3ReturnKey, deleteImageFromS3 } = require('../helper/s3Helper');
 const { generateSlug } = require('../helper/slug');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../public/images')); // Save images in the public/images folder
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`); // Unique filename
-  },
-});
-
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 // GET with pagination, search, sorting, filter by category and isactive
 router.get('/', async (req, res) => {
@@ -120,7 +109,6 @@ router.get('/', async (req, res) => {
 router.post('/', upload.single('image'), async (req, res) => {
   try {
     const { name, title, description, isactive, category_id, userId } = req.body;
-    const image = req.file ? `/images/${req.file.filename}` : null;
     const slug = generateSlug(name);
 
     // Check for unique slug in subcategory
@@ -129,13 +117,19 @@ router.post('/', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Subcategory slug must be unique' });
     }
 
+    let imageUrl = null;
+    if (req.file) {
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'subcategories');
+      imageUrl = uploadResult.Key;
+    }
+
     const subcategory = new Subcategory({
       name,
       title,
       description,
       isactive,
       category_id,
-      image,
+      image: imageUrl,
       slug,
       createdBy: userId
     });
@@ -163,7 +157,6 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const { name, title, description, isactive, category_id, userId } = req.body;
-    const image = req.file ? `/images/${req.file.filename}` : null;
 
     const subcategory = await Subcategory.findById(req.params.id);
     if (!subcategory) {
@@ -180,14 +173,11 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       }
     }
 
-    // If a new image is provided, delete the old image
-    if (image && subcategory.image) {
-      const oldImagePath = path.join(__dirname, '../public', subcategory.image);
-      fs.unlink(oldImagePath, (err) => {
-        if (err) {
-          console.error('Error deleting old image:', err);
-        }
-      });
+    let imageUrl = subcategory.image;
+    if (req.file) {
+      if (subcategory.image) await deleteImageFromS3(subcategory.image);
+      const uploadResult = await uploadImageToS3ReturnKey(req.file, 'subcategories');
+      imageUrl = uploadResult.Key;
     }
 
     const updateData = {
@@ -197,11 +187,9 @@ router.put('/:id', upload.single('image'), async (req, res) => {
       isactive,
       category_id,
       slug,
+      image: imageUrl,
       updatedBy: userId
     };
-    if (image) {
-      updateData.image = image;
-    }
 
     const updatedSubcategory = await Subcategory.findByIdAndUpdate(req.params.id, updateData, { new: true })
       .populate('category_id', 'name')
@@ -236,12 +224,7 @@ router.delete('/:id', async (req, res) => {
 
     // Delete the linked image if it exists
     if (subcategory.image) {
-      const imagePath = path.join(__dirname, '../public', subcategory.image);
-      fs.unlink(imagePath, (err) => {
-        if (err) {
-          console.error('Error deleting image:', err);
-        }
-      });
+      await deleteImageFromS3(subcategory.image);
     }
 
     // Delete the subcategory
