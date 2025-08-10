@@ -1,4 +1,4 @@
-name: Deploy Backend to EC2
+name: Deploy to EC2
 
 on:
   push:
@@ -8,36 +8,46 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Deploy to EC2
+      - name: Print GitHub Actions context (for debugging)
+        run: |
+          echo "Triggered by branch: $GITHUB_REF"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Commit SHA: $GITHUB_SHA"
+
+      - name: Test SSH Connection
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: 13.201.114.61
           username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
+          key: ${{ secrets.EC2_KEY }}
           script: |
-            echo "📂 Changing to backend directory..."
-            cd ~/ritishka-backend
+            echo "✅ Connected to EC2 successfully"
+            uname -a
+            whoami
+            pwd
 
-            echo "🔄 Pulling latest code from develop branch..."
+      - name: Deploy to EC2 with logs
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 13.201.114.61
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            set -x  # Enable debug mode (shows each command before running)
+            echo "📂 Changing to backend directory..."
+            cd ~/ritishka-backend || exit 1
+
+            echo "📥 Pulling latest code from develop branch..."
             git pull origin develop
 
             echo "📦 Installing dependencies..."
-            npm install --legacy-peer-deps
+            npm install
 
-            echo "🏗 Building project (if applicable)..."
-            if [ -f package.json ] && grep -q '"build"' package.json; then
-              npm run build
-            else
-              echo "No build step found, skipping..."
-            fi
-
-            echo "🚀 Restarting PM2 process..."
-            pm2 reload ritishka-backend || pm2 start npm --name "ritishka-backend" -- start
+            echo "🚀 Restarting PM2 processes..."
+            pm2 restart all
 
             echo "✅ Deployment complete!"
