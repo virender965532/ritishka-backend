@@ -20,8 +20,23 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
+            echo "📂 Changing to backend directory..."
             cd ~/ritishka-backend
+
+            echo "🔄 Pulling latest code from develop branch..."
             git pull origin develop
+
+            echo "📦 Installing dependencies..."
             npm install --legacy-peer-deps
-            npm run dev || echo "No build step, skipping..."
-            pm2 restart ritishka-backend
+
+            echo "🏗 Building project (if applicable)..."
+            if [ -f package.json ] && grep -q '"build"' package.json; then
+              npm run build
+            else
+              echo "No build step found, skipping..."
+            fi
+
+            echo "🚀 Restarting PM2 process..."
+            pm2 reload ritishka-backend || pm2 start npm --name "ritishka-backend" -- start
+
+            echo "✅ Deployment complete!"
