@@ -12,7 +12,7 @@ const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
 const uploadToS3 = (file, folderPath) => {
   const fileExtension = file.originalname.split('.').pop();
-  const key = `${folderPath}/${uuidv4()}.${fileExtension}`;
+  const key = `ritishka-backend/${folderPath}/${uuidv4()}.${fileExtension}`;
 
   const params = {
     Bucket: BUCKET_NAME,
