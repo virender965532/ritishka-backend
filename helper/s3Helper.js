@@ -35,7 +35,7 @@ const uploadVideoToS3 = (file, folderPath = 'videos') => {
 // Modified to return only the key (directory/filename) instead of full URL
 const uploadToS3ReturnKey = (file, folderPath) => {
   const fileExtension = file.originalname.split('.').pop();
-  const key = `${folderPath}/${uuidv4()}.${fileExtension}`;
+  const key = `ritishka-backend/${folderPath}/${uuidv4()}.${fileExtension}`;
 
   const params = {
     Bucket: BUCKET_NAME,
