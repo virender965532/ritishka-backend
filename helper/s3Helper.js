@@ -3,12 +3,12 @@ const AWS = require('aws-sdk');
 const { v4: uuidv4 } = require('uuid');
 
 const s3 = new AWS.S3({
-  region: process.env.AWS_REGION || 'ap-south-1',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'AKIASAGZGNUKIRDSFGGS',
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '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',
+  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
 
-const BUCKET_NAME = process.env.AWS_BUCKET_NAME || 'ritishka-backend-s3-public-bucket';
+const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
 const uploadToS3 = (file, folderPath) => {
   const fileExtension = file.originalname.split('.').pop();
