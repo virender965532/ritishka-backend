@@ -22,8 +22,8 @@ const sendEmailRoutes = require('./routes/sendEmailRoutes');
 connectDB();
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increase limit as needed
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '100mb' })); // Increase limit as needed
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 app.use("/api/auth", authRoutes);
