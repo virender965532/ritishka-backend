@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
   },
   profilePicture: { type: String },
   password: { type: String, required: true },
+  dob: { type: Date },
   role: { type: String, enum: ["USER", "ADMIN", "SUPERADMIN"], default: "USER" },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

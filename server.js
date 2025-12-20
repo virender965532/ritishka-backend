@@ -18,6 +18,7 @@ const threeDynamicRoutes = require('./routes/threeDynamicRoutes');
 const dynamicCardRoutes = require('./routes/dynamicCardRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const sendEmailRoutes = require('./routes/sendEmailRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 connectDB();
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/pages/three-dynamic', threeDynamicRoutes);
 app.use('/api/pages/dynamic-card', dynamicCardRoutes);
 app.use('/api/pages/banner', bannerRoutes);
 app.use('/api/send-email', sendEmailRoutes);
+app.use('/api/user', userRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
