@@ -19,6 +19,8 @@ const dynamicCardRoutes = require('./routes/dynamicCardRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const sendEmailRoutes = require('./routes/sendEmailRoutes');
 const userRoutes = require('./routes/userRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
 
 connectDB();
 const app = express();
@@ -43,6 +45,8 @@ app.use('/api/pages/dynamic-card', dynamicCardRoutes);
 app.use('/api/pages/banner', bannerRoutes);
 app.use('/api/send-email', sendEmailRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
