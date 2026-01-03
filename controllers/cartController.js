@@ -64,16 +64,17 @@ const updateCartItem = async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { itemId } = req.params;
+    const { itemId:product_id } = req.params;
     const { quantity, color } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(itemId)) return res.status(400).json({ error: 'Invalid item id' });
+    if (!mongoose.Types.ObjectId.isValid(product_id)) return res.status(400).json({ error: 'Invalid item id' });
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
 
-    const item = cart.items.id(itemId);
-    if (!item) return res.status(404).json({ error: 'Item not found' });
+    // const item = cart.items.id(product_id);
+    // if (!product_id) return res.status(404).json({ error: 'Item not found' });
+    const item = cart.items.find(i => i.product.toString() === product_id && ((i.color||'') === (color||'')));
 
     if (quantity !== undefined) item.quantity = quantity;
     if (color !== undefined) item.color = color;
@@ -91,16 +92,17 @@ const deleteCartItem = async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { itemId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(itemId)) return res.status(400).json({ error: 'Invalid item id' });
+    const { itemId:product_id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(product_id)) return res.status(400).json({ error: 'Invalid item id' });
 
     const cart = await Cart.findOne({ user: userId });
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
 
-    const item = cart.items.id(itemId);
-    if (!item) return res.status(404).json({ error: 'Item not found' });
+    // const item = cart.items.id(product_id);
+    // if (!item) return res.status(404).json({ error: 'Item not found' });
+    cart.items = cart.items.filter(i => i.product.toString() !== product_id);
 
-    item.remove();
+    // item.remove();
     await cart.save();
     res.json({ message: 'Item removed' });
   } catch (err) {
