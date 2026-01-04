@@ -14,8 +14,7 @@ async function createCheckout(req, res, next) {
       const product = await Product.findById(it.product).lean();
       if (!product) return res.status(400).json({ error: 'Invalid product ' + it.product });
       const price = product.discountedPrice || product.price;
-      const finalPrice = (price + (it.makingCharge || 0) - (it.discount || 0)) * (it.quantity || 1);
-      subtotal += finalPrice;
+      subtotal += product.discountedPrice;
       built.push({
         product: it.product,
         title: product.title,
@@ -23,14 +22,14 @@ async function createCheckout(req, res, next) {
         purity: it.purity || '',
         weight: it.weight || 0,
         quantity: it.quantity || 1,
-        price,
+        price: product.price || 0,
         makingCharge: it.makingCharge || 0,
-        discount: it.discount || 0,
-        finalPrice,
+        discount: product.price - product.discountedPrice || 0,
+        finalPrice: product.discountedPrice || product.price,
       });
     }
 
-    const grandTotal = subtotal + tax + shippingCharge - discount;
+    const grandTotal = subtotal + shippingCharge - discount;
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     // upsert checkout for user

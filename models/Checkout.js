@@ -26,6 +26,6 @@ const CheckoutSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // TTL index - auto remove when expiresAt passes
-CheckoutSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// CheckoutSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Checkout', CheckoutSchema);
